@@ -10,27 +10,31 @@ const getLevel = (score, type) => {
 };
 
 const calculateConsistency = (repos) => {
-  const { windowDays, ratioWeight, countWeight, maxScore, levelThresholds } = ANALYSIS_CONFIG.consistency;
-  
+  const { windowDays, ratioWeight, activityWeight, maxScore, levelThresholds } = ANALYSIS_CONFIG.consistency;
+
   const windowDate = new Date();
   windowDate.setDate(windowDate.getDate() - windowDays);
 
-  const recentRepos = repos.filter(repo => new Date(repo.pushed_at) > windowDate);
-  const activeRatio = recentRepos.length / (repos.length || 1);
-  
-  let countScore = recentRepos.length * countWeight;
-  const maxCountScore = maxScore - ratioWeight; 
-  
-  let score = (activeRatio * ratioWeight) + Math.min(countScore, maxCountScore);
-  score = Math.round(Math.min(score, maxScore));
+  // 1. Filter out Forks and Archived repos to avoid penalizing past work
+  const relevantRepos = repos.filter(repo => !repo.fork && !repo.archived);
+  const totalRelevant = relevantRepos.length || 1;
 
-  let label = "Low";
-  for (const threshold of levelThresholds) {
-    if (score >= threshold.min) {
-        label = threshold.label;
-        break;
-    }
-  }
+  // 2. Identify repos with recent activity
+  const activeRepos = relevantRepos.filter(repo => new Date(repo.pushed_at) > windowDate);
+  
+  // 3. Ratio Score: What % of your CURRENT portfolio is active?
+  const activeRatio = activeRepos.length / totalRelevant;
+  const ratioScore = activeRatio * ratioWeight;
+
+  // 4. Activity Score: Use a growth curve instead of a flat multiplier
+  // This rewards the first 3-4 active repos heavily, then tapers off.
+  const activityScore = Math.min(activeRepos.length * 20, maxScore - ratioWeight);
+
+  let score = Math.round(ratioScore + activityScore);
+  score = Math.min(score, maxScore);
+
+  // 5. Find the correct label
+  const label = levelThresholds.find(t => score >= t.min)?.label || "Low";
 
   return { score, label };
 };

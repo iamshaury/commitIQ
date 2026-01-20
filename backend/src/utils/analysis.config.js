@@ -12,17 +12,17 @@ export const ANALYSIS_CONFIG = {
     ]
   },
 
-  consistency: {
-    windowDays: 90,
-    ratioWeight: 50,
-    countWeight: 10,
-    maxScore: 100,
-    levelThresholds: [
-      { min: 70, label: "High" },
-      { min: 40, label: "Moderate" },
-      { min: 0, label: "Low" }
-    ]
-  },
+consistency: {
+  windowDays: 90,
+  ratioWeight: 30,    // Increased: Reward focus on the current portfolio
+  activityWeight: 70, // Total remaining points
+  maxScore: 100,
+  levelThresholds: [
+    { min: 75, label: "High" },
+    { min: 45, label: "Moderate" },
+    { min: 0, label: "Low" }
+  ]
+},
 
   seriousness: {
     starThreshold: 2,
