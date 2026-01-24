@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowRight, Activity, CheckCircle, Layers, ShieldCheck, Trophy, Users } from "lucide-react";
+import { ArrowRight, Activity, CheckCircle, Layers, ShieldCheck, Trophy } from "lucide-react";
 import { githubService } from "../services/api";
 import type { AnalysisResult } from "../types";
 import { SignalCard } from "../components/SignalCard";
@@ -88,7 +88,7 @@ export const Compare = () => {
             <img src={data.avatarUrl} alt={data.name} className="w-20 h-20 rounded-2xl mx-auto mb-3 object-cover shadow-inner ring-4 ring-slate-50" />
         </div>
         <h3 className="font-extrabold text-lg text-slate-900 truncate max-w-full">{data.name}</h3>
-        <p className="text-xs font-bold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-md mt-1">@{data.name.toLowerCase().replace(/\s/g, '')}</p>
+        <p className="text-xs font-bold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-md mt-1">@{data.name?.toLowerCase().replace(/\s/g, '') || 'unknown'}</p>
       </div>
 
      <div className="grid grid-cols-3 gap-2">
