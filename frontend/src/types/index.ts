@@ -1,32 +1,21 @@
-export interface Contribution {
-  rule: string;
-  contribution: number;
-  evidence: string;
-}
-
-export interface ScoreDetail {
-  score: number;
-  level: string;
-  confidence: string;
-  explanation: Contribution[];
-  uncertainties: string[];
-}
-
 export interface AnalysisResult {
-  totalRepos: number;
-  frontend: ScoreDetail;
-  backend: ScoreDetail;
-  consistencyScore: number;
-  consistencyLabel: string;
-  seriousProjectsCount: number;
-  seriousProjectsLevel: string;
+  activeReposLast90Days: number;
+  completedProjectsRatio: number;
+  topStackRatio: number;
+  dominantLanguage: string;
+  deepProjectCount: number;
+  externalInterestScore: number;
   totalStars: number;
   totalForks: number;
+  activeMonthsLast12: number;
+  hygieneScore: number;
   aiSummary: string;
+  totalRepos: number;
+  
+  // User Profile
   avatarUrl?: string;
   name?: string;
   bio?: string;
   followers?: number;
   following?: number;
-  topLanguages: string[];
 }

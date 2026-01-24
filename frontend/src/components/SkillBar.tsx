@@ -2,10 +2,9 @@ interface SkillBarProps {
   label: string;
   score: number;
   max: number;
-  level: string;
 }
 
-const SkillBar = ({ label, score, max, level }: SkillBarProps) => {
+const SkillBar = ({ label, score, max }: SkillBarProps) => {
   const percentage = Math.min((score / max) * 100, 100);
 
   // GitHub-like progress bar colors
@@ -29,10 +28,6 @@ const SkillBar = ({ label, score, max, level }: SkillBarProps) => {
           className={`h-full rounded-full ${getBarColor()}`}
           style={{ width: `${percentage}%` }}
         />
-      </div>
-      
-      <div className="mt-1 text-[10px] text-slate-400 text-right">
-        Level: <span className="font-medium text-slate-600">{level}</span>
       </div>
     </div>
   );

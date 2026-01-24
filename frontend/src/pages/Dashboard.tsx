@@ -25,7 +25,7 @@ export const Dashboard = () => {
   const [data, setData] = useState<AnalysisResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'backend' | 'frontend'>('backend');
+  
   
   const dashboardRef = useRef<HTMLDivElement>(null);
   const { isSharing, handleShare } = useReportActions();
@@ -105,17 +105,17 @@ export const Dashboard = () => {
                  <div className="absolute bottom-0 left-0 w-24 h-24 bg-rose-500/20 rounded-full blur-2xl -ml-10 -mb-10 group-hover:bg-rose-500/30 transition-colors" />
                  
                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400 relative z-10 flex items-center gap-2">
-                    <Sparkles size={12} className="text-indigo-400" /> Impact Score
+                    <Sparkles size={12} className="text-indigo-400" /> External Interest
                  </span>
                  <div className="flex items-baseline gap-1 relative z-10">
                     <span className="text-4xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-white via-slate-200 to-slate-400">
-                        {Math.floor(data.totalStars * 1.5 + data.totalForks)}
+                        {data.externalInterestScore}%
                     </span>
                  </div>
               </div>
             </div>
 
-            <MasterySection data={data} activeTab={activeTab} setActiveTab={setActiveTab} />
+            <MasterySection data={data} />
           </div>
         </div>
       </main>

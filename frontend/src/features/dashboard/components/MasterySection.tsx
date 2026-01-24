@@ -1,86 +1,152 @@
-import SkillBar from "../../../components/SkillBar";
+import { Activity, CheckCircle, Code2, Layers, Star, Calendar, ShieldCheck } from "lucide-react";
 import type { AnalysisResult } from "../../../types";
 
 interface MasterySectionProps {
   data: AnalysisResult;
-  activeTab: 'backend' | 'frontend';
-  setActiveTab: (tab: 'backend' | 'frontend') => void;
 }
 
-export const MasterySection = ({ data, activeTab, setActiveTab }: MasterySectionProps) => {
-  const currentAnalysis = activeTab === 'backend' ? data.backend : data.frontend;
+const SignalCard = ({ label, value, subtext, icon: Icon, colorClass, percentage }: any) => (
+  <div className="p-4 bg-white rounded-xl border border-slate-200 hover:border-indigo-100 hover:shadow-md hover:shadow-indigo-50/50 transition-all duration-300 group flex flex-col justify-between">
+    <div>
+      <div className="flex justify-between items-start mb-3">
+        <div className={`p-2 rounded-lg ${colorClass.bg} ${colorClass.text} group-hover:scale-110 transition-transform duration-300`}>
+          <Icon size={18} />
+        </div>
+        {typeof percentage === 'number' && (
+          <span className={`text-[10px] font-bold ${colorClass.text} bg-white border border-slate-100 px-1.5 py-0.5 rounded-full`}>
+            {percentage}%
+          </span>
+        )}
+      </div>
+      <div className="space-y-0.5">
+        <h4 className="text-xl font-bold text-slate-900 tracking-tight">{value}</h4>
+        <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wide">{label}</p>
+      </div>
+      {subtext && <p className="mt-2 text-[10px] text-slate-400 leading-tight">{subtext}</p>}
+    </div>
 
+    {/* Visual Progress Bar if percentage is provided */}
+    {typeof percentage === 'number' && (
+      <div className="mt-3 h-1 w-full bg-slate-100 rounded-full overflow-hidden">
+        <div 
+          className={`h-full rounded-full ${colorClass.bg.replace('bg-', 'bg-').replace('-50', '-500')}`} 
+          style={{ width: `${percentage}%` }}
+        />
+      </div>
+    )}
+  </div>
+);
+
+export const MasterySection = ({ data }: MasterySectionProps) => {
   return (
-    <div className="bg-white border border-slate-200">
-      <div className="px-8 py-6 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-            <h3 className="font-bold text-slate-900 uppercase tracking-tight text-md">Mastery Analysis</h3>
-        </div>
+    <div className="space-y-6">
+      
+      <div className="flex items-center justify-between">
+         <div className="space-y-1">
+            <h3 className="font-bold text-slate-900 text-base">Signal Analysis</h3>
+            <p className="text-xs text-slate-500">Key performance indicators derived from repository data.</p>
+         </div>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
         
-        {/* Tabs */}
-         <div className="flex gap-4">
-            {(['backend', 'frontend'] as const).map((tab) => (
-              <button 
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`text-xs font-bold uppercase tracking-widest transition-colors ${
-                  activeTab === tab 
-                    ? 'text-slate-900 border-b-2 border-slate-900 pb-1' 
-                    : 'text-slate-400 hover:text-slate-600 pb-1'
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
+        {/* 1. Recency - No progress bar, just count */}
+        <SignalCard 
+          label="Recent Activity" 
+          value={data.activeReposLast90Days}
+          subtext="Active repos (90d)"
+          icon={Activity}
+          colorClass={{ bg: 'bg-emerald-50', text: 'text-emerald-600' }}
+        />
+
+        {/* 2. Completion - Progress */}
+        <SignalCard 
+          label="Completion Ratio" 
+          value={data.completedProjectsRatio > 0.8 ? "High" : data.completedProjectsRatio > 0.4 ? "Mid" : "Low"}
+          percentage={Math.round(data.completedProjectsRatio * 100)}
+          subtext="Docs & deploy"
+          icon={CheckCircle}
+          colorClass={{ bg: 'bg-blue-50', text: 'text-blue-600' }}
+        />
+
+        {/* 3. Focus - Progress */}
+        <SignalCard 
+          label="Stack Focus" 
+          value={data.dominantLanguage || "Mixed"}
+          percentage={Math.round(data.topStackRatio * 100)}
+          subtext={`Aligned to stack`}
+          icon={Layers}
+          colorClass={{ bg: 'bg-indigo-50', text: 'text-indigo-600' }}
+        />
+
+        {/* 4. Project Depth - Count */}
+        <SignalCard 
+          label="Deep Projects" 
+          value={data.deepProjectCount}
+          subtext="Complex codebases"
+          icon={Code2}
+          colorClass={{ bg: 'bg-violet-50', text: 'text-violet-600' }}
+        />
+
+         {/* 5. Validation - Score (0-100 ish) */}
+        <SignalCard 
+          label="Community Interest" 
+          value={data.externalInterestScore > 75 ? "Viral" : data.externalInterestScore > 25 ? "Noticed" : "Quiet"}
+          percentage={data.externalInterestScore} // Assuming score is 0-100-ish
+          subtext={`Stars & forks`}
+          icon={Star}
+          colorClass={{ bg: 'bg-amber-50', text: 'text-amber-600' }}
+        />
+
+        {/* 6. Consistency - Progress (X/12) */}
+         <SignalCard 
+          label="Consistency" 
+          value={`${data.activeMonthsLast12} mos`}
+          percentage={Math.round((data.activeMonthsLast12 / 12) * 100)}
+          subtext="Active months (1y)"
+          icon={Calendar}
+          colorClass={{ bg: 'bg-rose-50', text: 'text-rose-600' }}
+        />
+
+         {/* 7. Hygiene - Progress */}
+         <SignalCard 
+          label="Hygiene Score" 
+          value={data.hygieneScore > 80 ? "Great" : data.hygieneScore > 50 ? "Good" : "Fair"}
+          percentage={data.hygieneScore}
+          subtext="Project quality"
+          icon={ShieldCheck}
+          colorClass={{ bg: 'bg-teal-50', text: 'text-teal-600' }}
+        />
+
       </div>
 
-      <div className="p-8 grid grid-cols-1 md:grid-cols-12 gap-12">
-        <div className="md:col-span-8 space-y-12">
-          {/* Skill Bars */}
-          <div className="space-y-8">
-            <SkillBar label="Frontend Mastery" score={data.frontend.score} max={100} level={data.frontend.level} />
-            <SkillBar label="Backend Mastery" score={data.backend.score} max={100} level={data.backend.level} />
-          </div>
-
-          {/* Explanation Lists */}
-          <div>
-             <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-6">
-                Key Insights
-             </h4>
-             <div className="space-y-4">
-              {currentAnalysis.explanation.map((item, i) => (
-                <div key={i} className="p-4 rounded-xl bg-slate-50/50 border border-slate-100 hover:border-indigo-100 hover:bg-slate-50 transition-all">
-                  <div className="flex justify-between items-start mb-2">
-                    <h4 className="text-sm font-bold text-slate-800">{item.rule}</h4>
-                    <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200">
-                        +{item.contribution}
-                    </span>
-                  </div>
-                  <p className="text-sm text-slate-500 leading-relaxed">{item.evidence}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Sidebar within Mastery */}
-        <div className="md:col-span-4 space-y-8">
-          <div className="pl-8 border-l border-slate-100">
-            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-6">Primary Stack</h4>
-            <div className="space-y-4">
-              {(data.topLanguages || []).map((lang) => (
-                <div key={lang} className="flex items-center justify-between">
-                  <span className="text-sm font-bold text-slate-600">{lang}</span>
-                  <div className="h-1.5 w-20 bg-slate-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 w-[70%]" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+      {/* AI Summary Section */}
+      <div className="p-6 rounded-xl bg-gradient-to-br from-indigo-900 via-slate-900 to-slate-950 text-white relative overflow-hidden shadow-lg shadow-indigo-900/10">
+         <div className="relative z-10">
+           <div className="flex items-center gap-3 mb-3">
+             <div className="p-1.5 bg-indigo-500/20 rounded-md backdrop-blur-sm border border-indigo-500/30">
+                <SparklesIcon />
+             </div>
+             <div>
+                <h4 className="text-sm font-bold">Recruiter Intelligence</h4>
+             </div>
+           </div>
+           <p className="text-slate-300 leading-relaxed text-xs lg:text-sm max-w-4xl font-light tracking-wide">
+             {data.aiSummary}
+           </p>
+         </div>
+         
+         {/* Background Decoration */}
+         <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl -mr-20 -mt-20" />
+         <div className="absolute bottom-0 left-0 w-64 h-64 bg-teal-500/10 rounded-full blur-3xl -ml-20 -mb-20" />
       </div>
+
     </div>
   );
 };
+
+const SparklesIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M12 2L14.39 9.39L22 12L14.39 14.39L12 22L9.61 14.39L2 12L9.61 9.39L12 2Z" fill="currentColor"/>
+  </svg>
+);

@@ -1,254 +1,190 @@
 import { ANALYSIS_CONFIG } from "./analysis.config.js";
 import { generateRecruiterSummary } from "../services/aiService.js";
 
-const getLevel = (score, type) => {
-  const levels = ANALYSIS_CONFIG.levels[type];
-  for (const level of levels) {
-    if (score >= level.min) return level.label;
-  }
-  return "Beginner";
+// 1. Recency (Recency > Volume)
+// Answers: "Are they currently coding?"
+const calculateRecency = (repos) => {
+    const { windowDays } = ANALYSIS_CONFIG.signals.recency;
+    const windowDate = new Date();
+    windowDate.setDate(windowDate.getDate() - windowDays);
+
+    const activeRepos = repos.filter(repo => new Date(repo.pushed_at) > windowDate);
+    const activeReposCount = activeRepos.length;
+
+    // A simple score or label could be derived, but we return the raw metric
+    return activeReposCount;
 };
 
+// 2. Project Completion Signal
+// Answers: "Do they ship or just start?"
+// Metric: CompletedProjectsRatio (Projects with README & Homepage vs Total)
+const calculateCompletion = (repos) => {
+    if (!repos.length) return 0;
+    
+    // We treat "Completion" as having a README AND (Homepage OR Docs)
+    // Actually, prompt says "README present, Deployed link... Clear structure"
+    // We'll approximate "Completed" as has_readme + (homepage OR has_pages OR description joined with > 50 chars)
+    
+    const completed = repos.filter(repo => {
+        const hasReadme = repo.has_readme;
+        const hasDeploy = repo.homepage || repo.has_pages;
+        // const isNotTiny = repo.size > 100; // Filter out "hello world" if needed, but "Completion" often implies docs + deploy
+        
+        return hasReadme && hasDeploy;
+    });
+
+    return Number((completed.length / repos.length).toFixed(2));
+};
+
+// 3. Focus / Narrative Coherence
+// Answers: "What kind of engineer is this?"
+// Metric: TopStackRatio (Percentage of repos aligned to top language)
+const calculateFocus = (repos) => {
+    if (!repos.length) return { topLanguage: "None", ratio: 0 };
+
+    const counts = {};
+    repos.forEach(r => {
+        if (r.language) {
+            counts[r.language] = (counts[r.language] || 0) + 1;
+        }
+    });
+
+    let topLang = "None";
+    let maxCount = 0;
+
+    Object.entries(counts).forEach(([lang, count]) => {
+        if (count > maxCount) {
+            maxCount = count;
+            topLang = lang;
+        }
+    });
+
+    const ratio = Number((maxCount / repos.length).toFixed(2));
+    return { topLanguage: topLang, ratio };
+};
+
+// 4. Project Depth (Complexity Tolerance)
+// Answers: "Can they handle non-trivial systems?"
+// Metric: DeepProjectCount (Repo size > threshold, has README)
+const calculateDepth = (repos) => {
+    const { sizeThreshold } = ANALYSIS_CONFIG.signals.complexity;
+    
+    // Simple approximation: Size > threshold KB
+    // Ideally we'd look for "number of folders", "config files" etc. if we had file trees.
+    const deepProjects = repos.filter(r => r.size > sizeThreshold && r.has_readme);
+    
+    return deepProjects.length;
+};
+
+// 5. External Validation (Soft Signal)
+// Answers: "Has anyone else cared?"
+// Metric: ExternalInterestScore (Log scaled stars + forks)
+const calculateValidation = (repos) => {
+    const totalStars = repos.reduce((sum, r) => sum + r.stargazers_count, 0);
+    const totalForks = repos.reduce((sum, r) => sum + r.forks_count, 0);
+    
+    // Log scale to dampen viral outliers
+    // Score = log2(Stars + Forks*2 + 1) * 10 or similar? 
+    // The prompt says "Stars (log scaled)".
+    // Let's just return the raw counts and maybe a composite score 0-100.
+    
+    const rawScore = totalStars + (totalForks * 2);
+    // Logarithmic scaling: 10 stars -> ~3.3, 100 stars -> ~6.6, 1000 stars -> ~10
+    // We can map this to a loose 0-100 "Interest Score" if we assume ~500 stars is "High".
+    // But let's stick to a simpler metric for display: Total External Interactions.
+    
+    return {
+        totalStars,
+        totalForks,
+        score: Math.min(100, Math.round(Math.log2(rawScore + 1) * 10)) // Simple log heuristic
+    };
+};
+
+// 6. Consistency Over Time
+// Answers: "Is this sustainable behavior?"
+// Metric: ActiveMonthsLast12 (Distinct months with activity)
 const calculateConsistency = (repos) => {
-  const { windowDays, ratioWeight, activityWeight, maxScore, levelThresholds } = ANALYSIS_CONFIG.consistency;
+    const oneYearAgo = new Date();
+    oneYearAgo.setMonth(oneYearAgo.getMonth() - 12);
+    
+    const activityMonths = new Set();
+    
+    repos.forEach(repo => {
+        const pushDate = new Date(repo.pushed_at);
+        if (pushDate > oneYearAgo) {
+            // Key: "YYYY-MM"
+            const key = `${pushDate.getFullYear()}-${pushDate.getMonth()}`;
+            activityMonths.add(key);
+        }
+        // Created at also signals activity
+        const createDate = new Date(repo.created_at);
+        if (createDate > oneYearAgo) {
+            const key = `${createDate.getFullYear()}-${createDate.getMonth()}`;
+            activityMonths.add(key);
+        }
+    });
 
-  const windowDate = new Date();
-  windowDate.setDate(windowDate.getDate() - windowDays);
-
-  // 1. Filter out Forks and Archived repos to avoid penalizing past work
-  const relevantRepos = repos.filter(repo => !repo.fork && !repo.archived);
-  const totalRelevant = relevantRepos.length || 1;
-
-  // 2. Identify repos with recent activity
-  const activeRepos = relevantRepos.filter(repo => new Date(repo.pushed_at) > windowDate);
-  
-  // 3. Ratio Score: What % of your CURRENT portfolio is active?
-  const activeRatio = activeRepos.length / totalRelevant;
-  const ratioScore = activeRatio * ratioWeight;
-
-  // 4. Activity Score: Use a growth curve instead of a flat multiplier
-  // This rewards the first 3-4 active repos heavily, then tapers off.
-  const activityScore = Math.min(activeRepos.length * 20, maxScore - ratioWeight);
-
-  let score = Math.round(ratioScore + activityScore);
-  score = Math.min(score, maxScore);
-
-  // 5. Find the correct label
-  const label = levelThresholds.find(t => score >= t.min)?.label || "Low";
-
-  return { score, label };
+    return activityMonths.size;
 };
 
-const calculateSeriousness = (repos) => {
-  const { starThreshold, sizeThreshold, seniorCount, midCount } = ANALYSIS_CONFIG.seriousness;
-  let seriousCount = 0;
-
-  repos.forEach(repo => {
-    const isPopular = repo.stargazers_count >= starThreshold;
-    const isDeployed = repo.has_pages || repo.homepage;
-    const isSubstantial = repo.size > sizeThreshold && repo.has_readme; 
-
-    if (isPopular || isDeployed || isSubstantial) {
-      seriousCount++;
-    }
-  });
-
-  let label = "Junior";
-  if (seriousCount >= seniorCount) label = "Senior";
-  else if (seriousCount >= midCount) label = "Mid-Level";
-
-  return { count: seriousCount, label };
-};
-
-const detectUncertainties = (repos) => {
-  const uncertainties = [];
-  if (!repos.length) uncertainties.push("No public repositories found.");
-  if (repos.length < 3) uncertainties.push("Low repository count reduces analysis confidence.");
-  
-  // Check for recent activity
-  const ninetyDaysAgo = new Date();
-  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-  const recentCount = repos.filter(r => new Date(r.pushed_at) > ninetyDaysAgo).length;
-  
-  if (recentCount === 0) uncertainties.push("No activity detected in the last 90 days.");
-
-  // Check for READMEs
-  const readmeCount = repos.filter(r => r.has_readme).length;
-  if (readmeCount < repos.length / 2) uncertainties.push("Many repositories lack documentation (README).");
-
-  return uncertainties;
-};
-
-const mergeContributions = (contributions) => {
-  const map = {};
-  contributions.forEach(c => {
-    if (!map[c.rule]) {
-      map[c.rule] = { ...c, rawEvidence: [c.evidence] };
-    } else {
-      map[c.rule].contribution += c.contribution;
-      map[c.rule].rawEvidence.push(c.evidence); 
-    }
-  });
-  
-  return Object.values(map).map(c => {
-      // Format evidence
-      const uniqueItems = [...new Set(c.rawEvidence)];
-      let evidenceStr = "";
-      
-      if (uniqueItems.length <= 3) {
-          evidenceStr = uniqueItems.join(", ");
-      } else {
-          evidenceStr = `${uniqueItems.slice(0, 3).join(", ")} and ${uniqueItems.length - 3} others`;
-      }
-
-      return {
-          rule: c.rule,
-          contribution: Number(c.contribution.toFixed(2)),
-          evidence: evidenceStr
-      };
-  });
+// 7. Engineering Hygiene
+// Answers: "Do they care about quality?"
+// Metric: HygieneScore
+// We can't check .gitignore or commit messages easily without more API calls.
+// We WILL use: README presence, Description presence, License presence (if available).
+const calculateHygiene = (repos) => {
+    if (!repos.length) return 0;
+    
+    let hygienePoints = 0;
+    const totalPossible = repos.length * 3; // 3 checks per repo
+    
+    repos.forEach(repo => {
+        if (repo.has_readme) hygienePoints += 1;
+        if (repo.description && repo.description.length > 10) hygienePoints += 1;
+        if (repo.license) hygienePoints += 1; // GitHub repo object usually has `license` field (object or null)
+    });
+    
+    return Math.round((hygienePoints / totalPossible) * 100);
 };
 
 export const analyzeRepos = async (repos) => {
-  const { scoringWeights } = ANALYSIS_CONFIG;
-  const { weights } = scoringWeights;
+    // Calculate all signals
+    const activeReposLast90Days = calculateRecency(repos);
+    const completedProjectsRatio = calculateCompletion(repos);
+    const { topLanguage, ratio: topStackRatio } = calculateFocus(repos);
+    const deepProjectCount = calculateDepth(repos);
+    const validation = calculateValidation(repos);
+    const activeMonthsLast12 = calculateConsistency(repos);
+    const hygieneScore = calculateHygiene(repos);
 
-  const backendContribs = [];
-  const frontendContribs = [];
+    // Prepare data for AI Summary
+    const signals = {
+        activeReposLast90Days,
+        completedProjectsRatio,
+        topLanguage,
+        topStackRatio,
+        deepProjectCount,
+        externalInterest: validation.score,
+        activeMonthsLast12,
+        hygieneScore
+    };
 
-  let backendTotal = 0;
-  let frontendTotal = 0;
+    // Generate AI Summary
+    const aiSummary = await generateRecruiterSummary(signals);
 
-  repos.forEach((repo) => {
-    // Language Analysis
-    const isBackendLang = scoringWeights.language.backend.includes(repo.language);
-    if (isBackendLang) {
-        backendTotal += weights.language;
-        backendContribs.push({
-            rule: "Language Proficiency",
-            contribution: weights.language,
-            evidence: `${repo.language} (${repo.name})`
-        });
-    }
-
-    const isFrontendLang = scoringWeights.language.frontend.includes(repo.language);
-    if (isFrontendLang) {
-        frontendTotal += weights.language;
-        frontendContribs.push({
-            rule: "Language Proficiency",
-            contribution: weights.language,
-            evidence: `${repo.language} (${repo.name})`
-        });
-    }
-
-    // Name Analysis
-    const lowerName = repo.name.toLowerCase();
-    const backendKeyword = scoringWeights.nameKeywords.backend.find(k => lowerName.includes(k));
-    if (backendKeyword) {
-        backendTotal += weights.name;
-        backendContribs.push({
-            rule: "Project Theme (Nomenclature)",
-            contribution: weights.name,
-            evidence: `"${backendKeyword}" in ${repo.name}`
-        });
-    }
-
-    const frontendKeyword = scoringWeights.nameKeywords.frontend.find(k => lowerName.includes(k));
-    if (frontendKeyword) {
-         frontendTotal += weights.name;
-         frontendContribs.push({
-            rule: "Project Theme (Nomenclature)",
-            contribution: weights.name,
-            evidence: `"${frontendKeyword}" in ${repo.name}`
-        });
-    }
-
-    // Size & Quality Analysis
-    // Using a derived weight application
-    if (repo.size > ANALYSIS_CONFIG.seriousness.sizeThreshold / 5) {
-        if (isBackendLang || backendKeyword) {
-             backendTotal += weights.size;
-             backendContribs.push({
-                rule: "Codebase Size",
-                contribution: weights.size,
-                evidence: `Substantial code in ${repo.name}`
-             });
-        }
-        if (isFrontendLang || frontendKeyword) {
-            frontendTotal += weights.size;
-             frontendContribs.push({
-                rule: "Codebase Size",
-                contribution: weights.size,
-                evidence: `Substantial code in ${repo.name}`
-             });
-        }
-        // Fallback: if no specific language match but large, maybe minimal generic contribution? 
-        // Current logic only adds to category if it 'belongs' to it implicitly via loops?
-        // Actually original logic was: "if size > 100 -> backend += 0.2; frontend += 0.2". It enriched BOTH regardless of language.
-        // I will preserve that behavior for now to maintain scores, but mark it as "General Engineering".
-        if (!isBackendLang && !backendKeyword) { // Only add if not already added? 
-            // Original code: unconditional addition.
-             backendTotal += weights.size;
-             backendContribs.push({ rule: "Codebase Size (Generic)", contribution: weights.size, evidence: `${repo.name} > ${ANALYSIS_CONFIG.seriousness.sizeThreshold/5}KB`});
-        }
-        if (!isFrontendLang && !frontendKeyword) {
-             frontendTotal += weights.size;
-             frontendContribs.push({ rule: "Codebase Size (Generic)", contribution: weights.size, evidence: `${repo.name} > ${ANALYSIS_CONFIG.seriousness.sizeThreshold/5}KB`});
-        }
-    }
-
-    if (repo.has_readme) {
-      // Original: unconditional +0.1 to both
-      backendTotal += weights.readme;
-      frontendTotal += weights.readme;
-      backendContribs.push({ rule: "Documentation", contribution: weights.readme, evidence: `README in ${repo.name}`});
-      frontendContribs.push({ rule: "Documentation", contribution: weights.readme, evidence: `README in ${repo.name}`});
-    }
-  });
-
-  const consistency = calculateConsistency(repos);
-  const seriousness = calculateSeriousness(repos);
-  const uncertainties = detectUncertainties(repos);
-
-  const totalStars = repos.reduce((sum, repo) => sum + repo.stargazers_count, 0);
-  const totalForks = repos.reduce((sum, repo) => sum + repo.forks_count, 0);
-
-  const backendLevel = getLevel(backendTotal, 'backend');
-  const frontendLevel = getLevel(frontendTotal, 'frontend');
-
-  const signals = {
-     backendLevel,
-     frontendLevel,
-     consistency: consistency.label, 
-     projectQuality: seriousness.label,
-     topLanguages: [...new Set(repos.map(r => r.language).filter(Boolean))].slice(0, 5)
-  };
-
-  const aiSummary = await generateRecruiterSummary(signals);
-
-  return {
-    backend: {
-        score: Number(backendTotal.toFixed(2)),
-        level: backendLevel,
-        confidence: uncertainties.length > 2 ? "Low" : uncertainties.length > 0 ? "Medium" : "High",
-        explanation: mergeContributions(backendContribs),
-        uncertainties
-    },
-    frontend: {
-        score: Number(frontendTotal.toFixed(2)),
-        level: frontendLevel,
-        confidence: uncertainties.length > 2 ? "Low" : uncertainties.length > 0 ? "Medium" : "High",
-        explanation: mergeContributions(frontendContribs),
-        uncertainties
-    },
-    totalRepos: repos.length,
-    totalStars,
-    totalForks,
-    consistencyScore: consistency.score,
-    consistencyLabel: consistency.label,
-    seriousProjectsCount: seriousness.count,
-    seriousProjectsLevel: seriousness.label,
-    aiSummary,
-    topLanguages: signals.topLanguages
-  };
+    // Return the specific structure requested
+    return {
+        activeReposLast90Days,
+        completedProjectsRatio,
+        topStackRatio,
+        dominantLanguage: topLanguage, // Helpful context
+        deepProjectCount,
+        externalInterestScore: validation.score,
+        totalStars: validation.totalStars,
+        totalForks: validation.totalForks,
+        activeMonthsLast12,
+        hygieneScore,
+        aiSummary,
+        totalRepos: repos.length
+    };
 };

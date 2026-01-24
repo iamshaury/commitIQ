@@ -14,13 +14,19 @@ export const Home = () => {
   };
 
   return (
-    <div className="flex flex-col items-center pt-32 pb-20">
-      <div className="w-full max-w-5xl mx-auto px-6 flex flex-col items-center text-center">
-          
-          <div className="inline-flex items-center gap-2 px-3 py-1 mb-10 rounded-full border border-indigo-100 bg-indigo-50/50 shadow-sm backdrop-blur-sm">
-             <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
-             <span className="text-xs font-bold text-indigo-600 tracking-wide uppercase">Public Beta</span>
-          </div>
+    <div className="flex flex-col items-center pt-32 pb-20 relative overflow-hidden">
+      {/* Background Splash */}
+      <div className="absolute top-0 left-0 w-full h-[800px] -z-10 pointer-events-none overflow-hidden">
+        <img 
+          src="/splash-bg.png" 
+          alt="Abstract Background" 
+          className="w-full h-full object-cover opacity-90"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/50 to-white"></div>
+      </div>
+      
+      <div className="w-full max-w-5xl mx-auto px-6 flex flex-col items-center text-center relative z-10">
+    
 
           <h1 className="text-6xl md:text-7xl font-semibold tracking-tighter text-slate-900 mb-8 leading-[1.1] text-balance">
             Uncover the <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">DNA</span> <br/>

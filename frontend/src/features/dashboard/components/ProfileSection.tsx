@@ -43,16 +43,16 @@ export const ProfileSection = ({ data, username }: ProfileSectionProps) => {
         {/* Clean Stats Row */}
         <div className="w-full grid grid-cols-2 text-left border-b border-slate-200 divide-x divide-slate-200 bg-white">
            <div className="p-6 group hover:bg-slate-50 transition-colors">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 group-hover:text-amber-500 transition-colors">Level</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 group-hover:text-amber-500 transition-colors">Focus</p>
               <div className="flex items-center gap-2">
-                 <span className="text-xl font-bold text-slate-900">{data.seriousProjectsLevel}</span>
+                 <span className="text-xl font-bold text-slate-900">{data.dominantLanguage}</span>
               </div>
            </div>
            
            <div className="p-6 group hover:bg-slate-50 transition-colors">
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 group-hover:text-emerald-500 transition-colors">Consistency</p>
               <div className="flex items-center gap-1">
-                <span className="text-xl font-bold text-slate-900">{data.consistencyScore}%</span>
+                <span className="text-xl font-bold text-slate-900">{data.activeMonthsLast12} / 12 mo</span>
               </div>
            </div>
         </div>
