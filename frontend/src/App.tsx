@@ -1,6 +1,7 @@
 import { Routes, Route, Link, useLocation } from "react-router-dom";
 import { Home } from "./pages/Home";
 import { Dashboard } from "./pages/Dashboard";
+import { Compare } from "./pages/Compare";
 
 
 function App() {
@@ -16,8 +17,8 @@ function App() {
           <div className="max-w-6xl mx-auto px-6 h-20 flex items-center justify-between">
             <Link to="/" className="group flex items-center gap-3">
               <div className="relative">
-                <div className="absolute inset-0 bg-indigo-500 blur-lg opacity-20 group-hover:opacity-40 transition-opacity" />
-                
+                <div className="absolute inset-0 bg-indigo-500 blur-xl opacity-20 group-hover:opacity-40 transition-opacity" />
+                <img src="/logo.svg" alt="CommitIQ Logo" className="w-10 h-10 relative z-10" />
               </div>
               <div className="flex flex-col">
                 <span className="font-bold text-xl tracking-tight text-slate-900 leading-none group-hover:text-indigo-600 transition-colors">CommitIQ</span>
@@ -26,6 +27,12 @@ function App() {
             </Link>
 
             <div className="hidden md:flex items-center gap-8">
+              <Link 
+                to="/compare"
+                className="text-sm font-semibold text-slate-500 hover:text-indigo-600 transition-colors"
+              >
+                Compare
+              </Link>
               <button 
                 onClick={() => {
                   if (location.pathname !== '/') {
@@ -46,6 +53,8 @@ function App() {
       <main className={`flex-grow ${!isDashboard ? 'max-w-6xl mx-auto px-6 py-8 w-full' : ''}`}>
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/compare" element={<Compare />} />
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/dashboard/:username" element={<Dashboard />} />
         </Routes>
       </main>

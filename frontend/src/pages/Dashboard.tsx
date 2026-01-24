@@ -32,7 +32,11 @@ export const Dashboard = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!username) return;
+      if (!username) {
+        setError("Invalid link. Please provide a GitHub username.");
+        setLoading(false);
+        return;
+      }
       try {
         const data = await githubService.getProfile(username);
         setData(data);
@@ -63,13 +67,13 @@ export const Dashboard = () => {
           <div className="w-12 h-12 bg-red-50 text-red-500 rounded-xl flex items-center justify-center mx-auto mb-4">
             <Sparkles size={20} className="rotate-180" />
           </div>
-          <h2 className="text-lg font-bold text-slate-800 mb-2">Analysis Failed</h2>
+          <h2 className="text-lg font-bold text-slate-800 mb-2">{!username ? "Invalid Link" : "Analysis Failed"}</h2>
           <p className="text-xs text-slate-500 mb-6 leading-relaxed">{error}</p>
           <button 
-            onClick={() => window.location.reload()}
+            onClick={() => (username && error !== "User not found") ? window.location.reload() : window.location.href = '/'}
             className="w-full py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-all hover:shadow-lg"
           >
-            Try Again
+            {(username && error !== "User not found") ? 'Try Again' : 'Go Home'}
           </button>
         </div>
       </div>

@@ -44,6 +44,12 @@ export const getProfile = async (req, res) => {
         });
     }
 
+    if (error.response?.status === 404) {
+        return res.status(404).json({
+            message: "User not found"
+        });
+    }
+
     console.error("Controller Error:", error);
     res.status(500).json({ 
         message: "GitHub user not found or API error", 
